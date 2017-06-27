@@ -1,0 +1,246 @@
+<?php
+/**
+ * Plugin Name: Youtube Upload Video
+ * Plugin URI: rvtechnologies.co.in
+ * Description: This plugin will allow users to upload video to our youtube channel
+ * Version: 1.0.0
+ * Author: Manjit Singh
+ * Author URI: rvtechnologies.co.in
+ * License: GPL2
+ */
+
+add_action('admin_menu', 'my_plugin_menu');
+
+function my_plugin_menu() {
+
+  add_menu_page('Youtube setting', 'Youtube upload', 'administrator', 'youtube-settings', 'my_plugin_settings_page', 'dashicons-admin-generic');
+}
+
+function my_plugin_settings_page() { ?>
+    <div class="wrap">
+<h1>Youtube Video Upload Setting</h1><small> Enter Client API ID and Client Secret </small>
+<form method="post" action="options.php">
+    <?php settings_fields( 'my-plugin-settings-group' ); ?>
+    <?php do_settings_sections( 'my-plugin-settings-group' ); ?>
+    <table class="form-table">
+        <tr valign="top">
+        <th scope="row">Client API ID</th>
+        <td><input style="width: 69%;" type="text" name="client_api" value="<?php echo esc_attr( get_option('client_api') ); ?>" /></td>
+        </tr>
+     
+        <tr valign="top">
+        <th scope="row">Client Secret</th>
+        <td><input style="width: 69%;" type="text" name="client_secret" value="<?php echo esc_attr( get_option('client_secret') ); ?>" /></td>
+        </tr>
+    </table>
+    
+    <?php submit_button(); ?>
+
+</form>
+</div>
+<?php }
+
+
+
+add_action( 'admin_init', 'my_plugin_settings' );
+function my_plugin_settings() {
+	register_setting( 'my-plugin-settings-group', 'client_api' );
+	register_setting( 'my-plugin-settings-group', '' );
+
+}
+
+// 
+
+add_shortcode('upload-form', 'upload_video_form');
+
+function upload_video_form() {
+ ob_start(); ?>
+
+ 	<form method="post" name="multiple_upload_form" id="multiple_upload_form" enctype="multipart/form-data" action="">
+		<?php echo (!empty($errorMsg))?'<p class="err-msg">'.$errorMsg.'</p>':''; ?>
+		<label for="title">Title:</label><input type="text" name="title" id="title" value="" />
+		<label for="description">Description:</label> <textarea name="description" id="description" cols="20" rows="2" ></textarea>
+		<label for="tags">Tags:</label> <input type="text" name="tags" id="tags" value="" />
+		<label for="video_file">Choose Video File:</label>	<input type="file" name="videoFile" id="videoFile" >
+		<input name="videoSubmit" id="submit" type="submit" value="Upload">
+		</form>
+
+<?php return ob_get_clean();
+}
+
+
+add_action( 'template_redirect', 'wpse149613_form_process' );
+function wpse149613_form_process(){
+  ob_start();
+    if(!isset($_POST['videoSubmit'])) // assuming you're using POST and submit button name is 'submit'
+        return;
+
+   
+$videoTitle = $_REQUEST['title'];
+	$videoDesc = $_REQUEST['description'];
+	$videoTags = $_REQUEST['tags'];
+	
+	if($_FILES["videoFile"]["name"] != ''){
+
+		echo "fddsfasd";
+	    $fileSize = $_FILES['videoFile']['size'];
+	    $fileType = $_FILES['videoFile']['type'];
+	    $fileName = str_shuffle('nityanandamaity').'-'.basename($_FILES["videoFile"]["name"]);
+		$targetDir = "/opt/lampp/htdocs/vupload/wp-content/plugins/youtube-upload/videos/";
+		$targetFile = $targetDir . $fileName;
+		$allowedTypeArr = array("video/mp4", "video/avi", "video/mpeg", "video/mpg", "video/mov", "video/wmv", "video/rm");
+		if(in_array($fileType, $allowedTypeArr)) {
+		    if(move_uploaded_file($_FILES['videoFile']['tmp_name'], $targetFile)) {
+		        $videoFilePath = $targetFile;
+                         // upload video script start here
+$key = file_get_contents('/opt/lampp/htdocs/vupload/wp-content/plugins/youtube-upload/token.txt');
+require_once 'src/Google/autoload.php'; 
+$client_id = '285710402617-4p9qdch5bl3oitqukj8lfhkjca17gdub.apps.googleusercontent.com'; // Enter your Client ID here
+$client_secret = 'deKKeKYR2SUTW8_V_pgpWRax'; // Enter your Client Secret here
+
+$videoPath = $targetFile;
+$videoTitle = "new upload using plugin";
+$videoDescription = "This is the YouTube video's description";
+$videoCategory = "22";
+$videoTags = array("first tag","second tag","third tag");
+
+try{
+    // Client init
+    $client = new Google_Client();
+    $client->setClientId($client_id);
+    $client->setAccessType('offline');
+    $client->setApprovalPrompt('force');
+    $client->setAccessToken($key);
+    $client->setClientSecret($client_secret);
+
+
+//  $client->refreshToken('1\\\-xncrHTz-SmZct26nqzHZ8kRO5fNmH9dBaK7SYqEpKw');
+           // file_put_contents('token.txt', $client->getAccessToken());
+
+    if ($client->getAccessToken()) {
+
+
+    	//echo "fsfsdfsdf"; die;
+
+        /**
+         * Check to see if our access token has expired. If so, get a new one and save it to file for future use.
+         */
+        if($client->isAccessTokenExpired()) {
+            echo "token expired";
+            $newToken = json_decode($client->getAccessToken());
+            $client->refreshToken('1/-xncrHTz-SmZct26nqzHZ8kRO5fNmH9dBaK7SYqEpKw');
+            file_put_contents('/opt/lampp/htdocs/vupload/wp-content/plugins/youtube-upload/token.txt', $client->getAccessToken());
+        }
+ 
+        $youtube = new Google_Service_YouTube($client);
+ 
+        // Create a snipet with title, description, tags and category id
+        $snippet = new Google_Service_YouTube_VideoSnippet();
+        $snippet->setTitle($videoTitle);
+        $snippet->setDescription($videoDescription);
+        $snippet->setCategoryId($videoCategory);
+        $snippet->setTags($videoTags);
+        $snippet->setDefaultLanguage("en");
+      //  $snippet->setDefaultAudioLanguage("en");
+
+        $recordingDetails = new Google_Service_YouTube_VideoRecordingDetails();
+        $recordingDetails->setLocationDescription("United States of America");
+        $recordingDetails->setRecordingDate("2016-01-20T12:34:00.000Z");
+        $locationdetails = new Google_Service_YouTube_GeoPoint();
+        $locationdetails->setLatitude("38.8833");
+        $locationdetails->setLongitude("77.0167");
+        $recordingDetails->setLocation($locationdetails);
+
+        // Create a video status with privacy status. Options are "public", "private" and "unlisted".
+        $status = new Google_Service_YouTube_VideoStatus();
+        $status->setPrivacyStatus("public");
+        $status->setPublicStatsViewable(false);
+        $status->setEmbeddable(false); // Google defect still not editable https://code.google.com/p/gdata-issues/issues/detail?id=4861
+ 
+        // Create a YouTube video with snippet and status
+        $video = new Google_Service_YouTube_Video();
+        $video->setSnippet($snippet);
+        $video->setRecordingDetails($recordingDetails);
+        $video->setStatus($status);
+ 
+        // Size of each chunk of data in bytes. Setting it higher leads faster upload (less chunks,
+        // for reliable connections). Setting it lower leads better recovery (fine-grained chunks)
+        $chunkSizeBytes = 1 * 1024 * 1024;
+
+        // Setting the defer flag to true tells the client to return a request which can be called
+        // with ->execute(); instead of making the API call immediately.
+        $client->setDefer(true);
+
+        // Create a request for the API's videos.insert method to create and upload the video.
+        $insertRequest = $youtube->videos->insert("status,snippet,recordingDetails", $video);
+
+        // Create a MediaFileUpload object for resumable uploads.
+        $media = new Google_Http_MediaFileUpload(
+            $client,
+            $insertRequest,
+            'video/*',
+            null,
+            true,
+            $chunkSizeBytes
+        );
+        $media->setFileSize(filesize($videoPath));
+
+        // Read the media file and upload it chunk by chunk.
+        $status = false;
+        $handle = fopen($videoPath, "rb");
+        while (!$status && !feof($handle)) {
+            $chunk = fread($handle, $chunkSizeBytes);
+            $status = $media->nextChunk($chunk);
+        }
+
+        fclose($handle);
+
+        /**
+         * Video has successfully been uploaded, now lets perform some cleanup functions for this video
+         */
+        if ($status->status['uploadStatus'] == 'uploaded') {
+            // Actions to perform for a successful upload
+              echo "you video has been uploaded successfully to our youtube channel";
+
+        }
+
+        // If you want to make other calls after the file upload, set setDefer back to false
+        $client->setDefer(true);
+
+    } else{
+        // @TODO Log error
+        echo 'Problems creating the client';
+    }
+
+} catch(Google_Service_Exception $e) {
+    print "Caught Google service Exception ".$e->getCode(). " message is ".$e->getMessage();
+    print "Stack trace is ".$e->getTraceAsString();
+}catch (Exception $e) {
+    print "Caught Google service Exception ".$e->getCode(). " message is ".$e->getMessage();
+    print "Stack trace is ".$e->getTraceAsString();
+}
+                         // upload video script end here
+                        
+
+
+		    }else{
+
+                            
+		                 // header('Location:'.BASE_URI.'index.php?err=ue');
+				//exit;
+		    }
+		}else{
+			header('Location:'.BASE_URI.'index.php?err=fe');
+			exit;
+		}
+	
+		// insert video data
+
+		
+	}else{
+		//header('Location:'.BASE_URI.'index.php?err=bf');
+                echo "Please select file";
+		exit;
+	}
+
+}

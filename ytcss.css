@@ -1,0 +1,16 @@
+/* Styles */
+
+.yt-form-upload p label {
+  width: 100%;
+  float: left;
+}
+.yt-form-upload p input[type="text"] {
+  width: 100%;
+  float: left;
+  padding: 5px;
+  background-color: #fff;
+}
+
+h1.uploadsuccess {
+  display: none;
+}
